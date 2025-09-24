@@ -1,0 +1,57 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "array",
+            "items": { "type": "object" }
+          }
+        }
+      }
+    },
+    "actions": {
+      "If_BlobCreated": {
+        "type": "If",
+        "expression": "@equals(first(triggerBody())?['eventType'], 'Microsoft.Storage.BlobCreated')",
+        "actions": {
+          "Get_blob_via_HTTP_MI": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "@{first(triggerBody())?['data']?['url']}",
+              "headers": { "x-ms-version": "2021-04-10" },
+              "authentication": {
+                "type": "ManagedServiceIdentity",
+                "audience": "https://storage.azure.com/"
+              }
+            },
+            "runtimeConfiguration": {
+              "contentTransfer": { "transferMode": "Chunked" }
+            }
+          },
+          "Send_event": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": { 
+                "connection": { 
+                  "referenceName": "eventhubs" 
+                } 
+              },
+              "method": "post",
+              "path": "/@{encodeURIComponent('nsgflowhub')}/events",
+              "body": {
+                "ContentData": "@{base64(body('Get_blob_via_HTTP_MI'))}"
+              }
+            },
+            "runAfter": { "Get_blob_via_HTTP_MI": [ "Succeeded" ] }
+          }
+        }
+      }
+    }
+  }
+}
