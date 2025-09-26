@@ -18,12 +18,80 @@ This repository provides **two implementation approaches** for processing VNet f
 
 ## Architecture
 
-Both approaches implement the same processing pipeline:
+Both approaches implement the same processing pipeline with different execution environments:
 
-1. **Trigger**: HTTP Request (receives Event Grid notifications)
-2. **Condition**: Filters for `Microsoft.Storage.BlobCreated` events  
-3. **Action**: Retrieves blob content using Managed Identity
-4. **Action**: Sends flow log data to Event Hub (`nsgflowhub`)
+```mermaid
+graph TB
+    subgraph "Azure Infrastructure"
+        NSG[Network Security Group] --> FL[VNet Flow Logs]
+        FL --> SA[Storage Account<br/>insights-logs-networkflowlog]
+        SA --> EG[Event Grid<br/>Blob Created Event]
+        
+        subgraph "Processing Options"
+            subgraph "Option 1: Logic App"
+                LA[Logic App<br/>HTTP Trigger]
+                LA --> LAC{Filter Event Type<br/>BlobCreated?}
+                LAC -->|Yes| LAD[Download Blob<br/>Managed Identity]
+                LAD --> LAE[Send to Event Hub<br/>API Connection]
+            end
+            
+            subgraph "Option 2: Function App"
+                FA[Function App<br/>Python HTTP Trigger]
+                FA --> FAC{Validate Event<br/>BlobCreated?}
+                FAC -->|Yes| FAD[Download Blob<br/>Azure SDK + MI]
+                FAD --> FAE[Send to Event Hub<br/>Event Hub SDK]
+            end
+        end
+        
+        EG -.->|HTTP POST| LA
+        EG -.->|HTTP POST| FA
+        LAE --> EH[Event Hub<br/>nsgflowhub]
+        FAE --> EH
+        
+        EH --> DS[Downstream Systems<br/>Analytics, SIEM, etc.]
+    end
+    
+    subgraph "Security & Authentication"
+        MI[Managed Identity]
+        MI -.->|Storage Blob Data Reader| SA
+        MI -.->|Event Hubs Data Sender| EH
+        LAD -.-> MI
+        FAD -.-> MI
+        LAE -.-> MI
+        FAE -.-> MI
+    end
+
+    style LA fill:#e1f5fe
+    style FA fill:#f3e5f5
+    style MI fill:#e8f5e8
+    style EH fill:#fff3e0
+```
+
+### Data Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant NSG as Network Security Group
+    participant SA as Storage Account
+    participant EG as Event Grid
+    participant APP as Logic App / Function App
+    participant EH as Event Hub
+    participant DS as Downstream Systems
+
+    NSG->>SA: Write VNet Flow Logs
+    SA->>EG: Trigger: Microsoft.Storage.BlobCreated
+    EG->>APP: HTTP POST: Event Grid Notification
+    
+    Note over APP: Validate Event Type = BlobCreated
+    
+    APP->>SA: Download Blob (Managed Identity Auth)
+    SA-->>APP: Return Flow Log Data
+    APP->>EH: Send Flow Log Data (Managed Identity Auth)
+    EH-->>APP: Confirm Receipt
+    APP-->>EG: HTTP 200 OK
+    
+    EH->>DS: Stream Flow Log Data
+```
 
 ## Files Structure
 
