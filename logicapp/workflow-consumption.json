@@ -44,9 +44,7 @@
               },
               "method": "post",
               "path": "/@{encodeURIComponent('nsgflowhub')}/events",
-              "body": {
-                "ContentData": "@{base64(body('Get_blob_via_HTTP_MI'))}"
-              }
+              "body": "@body('Get_blob_via_HTTP_MI')"
             },
             "runAfter": { "Get_blob_via_HTTP_MI": [ "Succeeded" ] }
           }
