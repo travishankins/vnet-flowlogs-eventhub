@@ -35,16 +35,18 @@
             }
           },
           "Send_event": {
-            "type": "ApiConnection",
+            "type": "Http",
             "inputs": {
-              "host": { 
-                "connection": { 
-                  "referenceName": "eventhubs" 
-                } 
+              "method": "POST",
+              "uri": "https://YOUR_EVENTHUB_NAMESPACE.servicebus.windows.net/nsgflowhub/messages",
+              "headers": {
+                "Content-Type": "application/json"
               },
-              "method": "post",
-              "path": "/@{encodeURIComponent('nsgflowhub')}/events",
-              "body": "@body('Get_blob_via_HTTP_MI')"
+              "body": "@body('Get_blob_via_HTTP_MI')",
+              "authentication": {
+                "type": "ManagedServiceIdentity",
+                "audience": "https://eventhubs.azure.net"
+              }
             },
             "runAfter": { "Get_blob_via_HTTP_MI": [ "Succeeded" ] }
           }
