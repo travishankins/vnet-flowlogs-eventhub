@@ -3,7 +3,7 @@
 This repository provides **two implementation approaches** for processing VNet flow logs and forwarding them to an Event Hub for analysis:
 
 1. **Logic App Version** - Visual workflow designer approach
-2. **Function App Version** - Code-based Python implementation ⭐ **NEW**
+2. **Function App Version** - Code-based Python implementation
 
 ## Implementation Comparison
 
