@@ -1,5 +1,4 @@
 import azure.functions as func
-import azure.durable_functions as df
 import logging
 import json
 import os

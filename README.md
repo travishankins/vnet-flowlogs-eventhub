@@ -1,11 +1,13 @@
 # VNet Flow Logs to Event Hub
 
-This repository provides **two implementation approaches** for processing VNet flow logs and forwarding them to an Event Hub for analysis:
+> **Process and forward Azure VNet flow logs to Event Hub for real-time analysis**
 
-1. **Logic App Version** - Visual workflow designer approach
-2. **Function App Version** - Code-based Python implementation
+This repository provides **two production-ready implementation approaches** for processing VNet flow logs and forwarding them to an Event Hub:
 
-## Implementation Comparison
+1. **Logic App** - Visual workflow designer approach
+2. **Function App** - Code-based Python implementation
+
+## 🚀 Implementation Comparison
 
 | Feature | Logic App | Function App |
 |---------|-----------|--------------|
@@ -16,7 +18,7 @@ This repository provides **two implementation approaches** for processing VNet f
 | **Monitoring** | Workflow runs | Application Insights |
 | **Setup Time** | Fast (visual designer) | Moderate (code deployment) |
 
-## Architecture
+## 📐 Architecture
 
 Both approaches implement the same processing pipeline with different execution environments:
 
@@ -67,7 +69,7 @@ graph TB
     style EH fill:#fff3e0
 ```
 
-### Data Flow Sequence
+### 🔄 Data Flow Sequence
 
 ```mermaid
 sequenceDiagram
@@ -93,57 +95,126 @@ sequenceDiagram
     EH->>DS: Stream Flow Log Data
 ```
 
-## Files Structure
+## 📁 Project Structure
 
 ```
-├── logicapp/                    # Logic App implementation
-│   ├── workflow-consumption.json   # For Consumption Logic Apps
-│   ├── workflow-standard.json      # For Standard Logic Apps  
-│   └── README.md                   # Logic App documentation
-├── function-app/                # Function App implementation ⭐ NEW
-│   ├── __init__.py                 # Python function code
-│   ├── function.json               # Function configuration
-│   ├── requirements.txt            # Dependencies
-│   └── README.md                   # Function App documentation
-├── scripts/                     # Deployment and testing scripts
-│   ├── setup-infrastructure.sh     # Core Azure resources
-│   ├── configure-managed-identity.sh # Logic App RBAC
-│   ├── test-upload.sh              # Logic App testing
-│   ├── deploy-function-app.sh      # Function App deployment ⭐ NEW
-│   ├── configure-function-rbac.sh  # Function App RBAC ⭐ NEW
-│   └── test-function.sh            # Function App testing ⭐ NEW
-└── CONFIGURATION.md             # Setup guide
+├── logicapp/                         # Logic App implementation
+│   ├── workflow-consumption.json        # For Consumption Logic Apps
+│   ├── workflow-standard.json           # For Standard Logic Apps  
+│   └── README.md                        # Logic App documentation
+├── function-app/                     # Function App implementation
+│   ├── __init__.py                      # Python function code
+│   ├── function.json                    # Function configuration
+│   ├── host.json                        # Function host configuration
+│   ├── requirements.txt                 # Python dependencies
+│   └── README.md                        # Function App documentation
+├── scripts/                          # Deployment and testing scripts
+│   ├── setup-infrastructure.sh          # Core Azure resources
+│   ├── configure-managed-identity.sh    # Logic App RBAC
+│   ├── test-upload.sh                   # Logic App testing
+│   ├── deploy-function-app.sh           # Function App deployment
+│   ├── configure-function-rbac.sh       # Function App RBAC
+│   └── test-function.sh                 # Function App testing
+└── CONFIGURATION.md                  # Detailed setup guide
 
-## Quick Start
+## ⚡ Quick Start
 
 ### Option 1: Logic App (Visual Workflow)
-1. **Deploy Infrastructure**: Run `scripts/setup-infrastructure.sh`
-2. **Configure RBAC**: Run `scripts/configure-managed-identity.sh`  
-3. **Import Workflow**: Deploy appropriate workflow JSON to Logic App
-4. **⚠️ IMPORTANT**: Follow `CONFIGURATION.md` for required manual setup steps
-5. **Test**: Configure and run `scripts/test-upload.sh`
 
-### Option 2: Function App (Python Code) ⭐ **NEW**
-1. **Deploy Infrastructure**: Run `scripts/setup-infrastructure.sh` (same base resources)
-2. **Deploy Function**: Run `scripts/deploy-function-app.sh`
-3. **Configure RBAC**: Run `scripts/configure-function-rbac.sh`
-4. **Test**: Configure and run `scripts/test-function.sh`
+1. **Deploy Infrastructure**
+   ```bash
+   ./scripts/setup-infrastructure.sh
+   ```
 
-## Recommendations
+2. **Configure RBAC**
+   ```bash
+   ./scripts/configure-managed-identity.sh
+   ```
 
-- **Choose Logic App** for quick setup, visual design, and integration scenarios
-- **Choose Function App** for high-volume processing, custom logic, or cost optimization
+3. **Import Workflow**
+   - Deploy appropriate workflow JSON to Logic App via Azure Portal
 
-## Manual Configuration Required
+4. **⚠️ Manual Configuration Required**
+   - Follow `CONFIGURATION.md` for Event Hub connection setup
 
-After running the setup scripts, you **must** manually configure the Event Hub connection in the Logic App. See `CONFIGURATION.md` for detailed steps - the Logic App will not work without this manual configuration.
+5. **Test**
+   ```bash
+   ./scripts/test-upload.sh
+   ```
 
-## Deployment
+### Option 2: Function App (Python Code)
 
-1. Deploy the Logic App workflow using the Azure portal or ARM templates
-2. Configure the Event Hub connection
-3. Set up Event Grid subscriptions to trigger the workflow
+1. **Deploy Infrastructure** (if not already deployed)
+   ```bash
+   ./scripts/setup-infrastructure.sh
+   ```
 
-## Testing
+2. **Deploy Function App**
+   ```bash
+   ./scripts/deploy-function-app.sh
+   ```
 
-Use the test script in the `scripts/` folder to simulate storage events and verify the workflow functionality.
+3. **Configure RBAC**
+   ```bash
+   ./scripts/configure-function-rbac.sh
+   ```
+
+4. **Test**
+   ```bash
+   ./scripts/test-function.sh
+   ```
+
+## 💡 Recommendations
+
+| Choose Logic App When... | Choose Function App When... |
+|--------------------------|------------------------------|
+| You need quick setup with minimal code | You need high-volume processing |
+| You prefer visual workflow design | You want full code control |
+| You're building integration scenarios | You need cost optimization |
+| Your team is less developer-focused | You require custom business logic |
+
+## 🔒 Security Features
+
+- **Managed Identity** - No credentials in code
+- **RBAC** - Principle of least privilege
+- **TLS 1.2+** - Encryption in transit
+- **Shared Key Disabled** - Enhanced storage security
+- **Private Endpoints Ready** - VNet integration support
+
+## 📝 Prerequisites
+
+- Azure subscription
+- Azure CLI installed and authenticated
+- Bash shell (Linux, macOS, WSL, or Azure Cloud Shell)
+- For Function App: Azure Functions Core Tools
+
+## 🧪 Testing
+
+Both implementations include test scripts that:
+- Upload a sample flow log to storage
+- Simulate Event Grid notifications
+- Verify end-to-end processing
+
+See individual test scripts for configuration requirements.
+
+## 📚 Documentation
+
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Detailed setup and configuration guide
+- **[function-app/README.md](function-app/README.md)** - Function App specific documentation
+- **[logicapp/README.md](logicapp/README.md)** - Logic App specific documentation
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## 📄 License
+
+This project is provided as-is for educational and reference purposes.
+
+---
+
+<div align="center">
+
+**Built with ❤️ following Azure Well-Architected Framework best practices**
+
+</div>
