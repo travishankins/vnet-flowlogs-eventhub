@@ -207,14 +207,6 @@ See individual test scripts for configuration requirements.
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
-## 📄 License
+## ⚖️ License
 
 This project is provided as-is for educational and reference purposes.
-
----
-
-<div align="center">
-
-**Built with ❤️ following Azure Well-Architected Framework best practices**
-
-</div>
