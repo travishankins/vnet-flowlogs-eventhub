@@ -3,6 +3,8 @@
 # Test script for VNet Flow Logs Azure Function
 # This script uploads a test blob and simulates the Event Grid notification to the Function
 
+set -euo pipefail
+
 # ⚠️  CONFIGURATION REQUIRED ⚠️
 # Update these variables with your actual Azure resources before running:
 # - FUNCTION_URL: Your Function App's HTTP trigger URL
@@ -10,13 +12,14 @@
 # - CONTAINER: Your blob container name
 
 # Configuration (update these with your actual values)
-FUNCTION_URL="YOUR_FUNCTION_APP_URL_HERE"  # e.g., https://func-vnet-flowlogs-abc123.azurewebsites.net/api/flowlogs
-STG="YOUR_STORAGE_ACCOUNT_NAME"  # Replace with your actual storage account name
+: "${FUNCTION_URL:?Set FUNCTION_URL to the nonproduction HTTP endpoint}"
+: "${FUNCTION_KEY:?Set FUNCTION_KEY locally; do not commit it}"
+: "${STG:?Set STG to the disposable test storage account}"
 CONTAINER="insights-logs-networkflowlog"
 BLOB="manual-tests/test-flowlog-$(date +%Y%m%d%H%M%S).json"
 
 echo "🧪 Testing VNet Flow Logs Function App..."
-echo "Function URL: $FUNCTION_URL"
+echo "Function endpoint configured (URL hidden)"
 echo "Storage Account: $STG"
 echo "Container: $CONTAINER"
 echo "Blob: $BLOB"
@@ -104,11 +107,14 @@ EOF
 
 # 5) Send the Event Grid notification to Function App
 echo "🚀 Sending Event Grid notification to Function App..."
-echo "Function URL: $FUNCTION_URL"
+echo "Function endpoint configured (URL hidden)"
 
-response=$(curl -s -w "\n%{http_code}" -X POST "$FUNCTION_URL" \
+response=$(curl --config - -sS -w "\n%{http_code}" -X POST "$FUNCTION_URL" \
   -H "Content-Type: application/json" \
-  -d @event-payload.json)
+  -d @event-payload.json <<EOF
+header = "x-functions-key: ${FUNCTION_KEY}"
+EOF
+)
 
 # Extract response body and status code
 response_body=$(echo "$response" | head -n -1)

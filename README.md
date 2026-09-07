@@ -1,212 +1,64 @@
 # VNet Flow Logs to Event Hub
 
-> **Process and forward Azure VNet flow logs to Event Hub for real-time analysis**
+Forward stored Azure VNet flow-log data to Event Hub for downstream analysis.
 
-This repository provides **two production-ready implementation approaches** for processing VNet flow logs and forwarding them to an Event Hub:
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 
-1. **Logic App** - Visual workflow designer approach
-2. **Function App** - Code-based Python implementation
+[Quick Start](#quick-start) | [Configuration](#configuration) | [Validation](#validation) | [Guide](GUIDE.md)
 
-## 🚀 Implementation Comparison
+## Overview
 
-| Feature | Logic App | Function App |
-|---------|-----------|--------------|
-| **Best For** | Quick setup, visual workflows | High performance, custom logic |
-| **Performance** | Good | Excellent |
-| **Cost** | Connector + execution fees | Consumption-based |
-| **Flexibility** | Pre-built actions | Full code control |
-| **Monitoring** | Workflow runs | Application Insights |
-| **Setup Time** | Fast (visual designer) | Moderate (code deployment) |
+The repository contains Logic App and Python Function samples for blob-event processing.
+The Function handler has local regression coverage; neither path is certified for a particular production workload.
 
-## 📐 Architecture
+## Prerequisites
 
-Both approaches implement the same processing pipeline with different execution environments:
+- Azure storage, Event Grid, Event Hub, and a compatible processing host.
+- Managed-identity data permissions and an authenticated webhook configuration.
+- Python 3.12 for local tests; Bash and Azure deployment tools for the documented scripts.
 
-```mermaid
-graph TB
-    subgraph "Azure Infrastructure"
-        NSG[Network Security Group] --> FL[VNet Flow Logs]
-        FL --> SA[Storage Account<br/>insights-logs-networkflowlog]
-        SA --> EG[Event Grid<br/>Blob Created Event]
-        
-        subgraph "Processing Options"
-            subgraph "Option 1: Logic App"
-                LA[Logic App<br/>HTTP Trigger]
-                LA --> LAC{Filter Event Type<br/>BlobCreated?}
-                LAC -->|Yes| LAD[Download Blob<br/>Managed Identity]
-                LAD --> LAE[Send to Event Hub<br/>API Connection]
-            end
-            
-            subgraph "Option 2: Function App"
-                FA[Function App<br/>Python HTTP Trigger]
-                FA --> FAC{Validate Event<br/>BlobCreated?}
-                FAC -->|Yes| FAD[Download Blob<br/>Azure SDK + MI]
-                FAD --> FAE[Send to Event Hub<br/>Event Hub SDK]
-            end
-        end
-        
-        EG -.->|HTTP POST| LA
-        EG -.->|HTTP POST| FA
-        LAE --> EH[Event Hub<br/>nsgflowhub]
-        FAE --> EH
-        
-        EH --> DS[Downstream Systems<br/>Analytics, SIEM, etc.]
-    end
-    
-    subgraph "Security & Authentication"
-        MI[Managed Identity]
-        MI -.->|Storage Blob Data Reader| SA
-        MI -.->|Event Hubs Data Sender| EH
-        LAD -.-> MI
-        FAD -.-> MI
-        LAE -.-> MI
-        FAE -.-> MI
-    end
+## Quick Start
 
-    style LA fill:#e1f5fe
-    style FA fill:#f3e5f5
-    style MI fill:#e8f5e8
-    style EH fill:#fff3e0
+```text
+git clone https://github.com/travishankins/vnet-flowlogs-eventhub.git
+cd vnet-flowlogs-eventhub
+python -m pip install -r function-app/requirements.txt
+python -m unittest discover -s tests -v
 ```
 
-### 🔄 Data Flow Sequence
+Use an isolated Python environment. Review [configuration](CONFIGURATION.md) and the [project guide](GUIDE.md) before provisioning resources.
 
-```mermaid
-sequenceDiagram
-    participant NSG as Network Security Group
-    participant SA as Storage Account
-    participant EG as Event Grid
-    participant APP as Logic App / Function App
-    participant EH as Event Hub
-    participant DS as Downstream Systems
+## Configuration
 
-    NSG->>SA: Write VNet Flow Logs
-    SA->>EG: Trigger: Microsoft.Storage.BlobCreated
-    EG->>APP: HTTP POST: Event Grid Notification
-    
-    Note over APP: Validate Event Type = BlobCreated
-    
-    APP->>SA: Download Blob (Managed Identity Auth)
-    SA-->>APP: Return Flow Log Data
-    APP->>EH: Send Flow Log Data (Managed Identity Auth)
-    EH-->>APP: Confirm Receipt
-    APP-->>EG: HTTP 200 OK
-    
-    EH->>DS: Stream Flow Log Data
-```
+Set `EVENT_HUB_NAMESPACE` and optionally `EVENT_HUB_NAME` for the Function.
+Its HTTP trigger requires a function key. Keep keys and webhook URLs private and confirm the storage and Event Hub role assignments.
 
-## 📁 Project Structure
+## Validation
 
-```
-├── logicapp/                         # Logic App implementation
-│   ├── workflow-consumption.json        # For Consumption Logic Apps
-│   ├── workflow-standard.json           # For Standard Logic Apps  
-│   └── README.md                        # Logic App documentation
-├── function-app/                     # Function App implementation
-│   ├── __init__.py                      # Python function code
-│   ├── function.json                    # Function configuration
-│   ├── host.json                        # Function host configuration
-│   ├── requirements.txt                 # Python dependencies
-│   └── README.md                        # Function App documentation
-├── scripts/                          # Deployment and testing scripts
-│   ├── setup-infrastructure.sh          # Core Azure resources
-│   ├── configure-managed-identity.sh    # Logic App RBAC
-│   ├── test-upload.sh                   # Logic App testing
-│   ├── deploy-function-app.sh           # Function App deployment
-│   ├── configure-function-rbac.sh       # Function App RBAC
-│   └── test-function.sh                 # Function App testing
-└── CONFIGURATION.md                  # Detailed setup guide
+Tests cover processing outcomes, subscription validation, malformed event lists, and function layout.
+Verify host discovery, actual flow-log arrival, retries, and Event Hub receipt in a nonproduction environment.
 
-## ⚡ Quick Start
+## Operations
 
-### Option 1: Logic App (Visual Workflow)
+Failed batches return a retryable error. Configure dead-lettering and monitor delivery failures.
+Retain the previous artifact and subscription configuration; do not restore anonymous access as a rollback.
 
-1. **Deploy Infrastructure**
-   ```bash
-   ./scripts/setup-infrastructure.sh
-   ```
+## Security and Limitations
 
-2. **Configure RBAC**
-   ```bash
-   ./scripts/configure-managed-identity.sh
-   ```
+Retries can duplicate already processed events; consumers must deduplicate.
+The Function sends each blob as one message, so oversized blobs need a splitting design.
+Review the older deployment scripts/runtime choices before use; the Logic App path needs separate validation.
 
-3. **Import Workflow**
-   - Deploy appropriate workflow JSON to Logic App via Azure Portal
+## Documentation
 
-4. **⚠️ Manual Configuration Required**
-   - Follow `CONFIGURATION.md` for Event Hub connection setup
+- [Project guide](GUIDE.md): processing options, architecture, and deployment flow.
+- [Configuration reference](CONFIGURATION.md): infrastructure and connections.
+- [Function guide](function-app/README.md) and [Logic App guide](logicapp/README.md).
 
-5. **Test**
-   ```bash
-   ./scripts/test-upload.sh
-   ```
+## Contributing
 
-### Option 2: Function App (Python Code)
+Open an issue or pull request with synthetic events and regression tests. Exclude webhook keys, private flow logs, and resource credentials.
 
-1. **Deploy Infrastructure** (if not already deployed)
-   ```bash
-   ./scripts/setup-infrastructure.sh
-   ```
+## License
 
-2. **Deploy Function App**
-   ```bash
-   ./scripts/deploy-function-app.sh
-   ```
-
-3. **Configure RBAC**
-   ```bash
-   ./scripts/configure-function-rbac.sh
-   ```
-
-4. **Test**
-   ```bash
-   ./scripts/test-function.sh
-   ```
-
-## 💡 Recommendations
-
-| Choose Logic App When... | Choose Function App When... |
-|--------------------------|------------------------------|
-| You need quick setup with minimal code | You need high-volume processing |
-| You prefer visual workflow design | You want full code control |
-| You're building integration scenarios | You need cost optimization |
-| Your team is less developer-focused | You require custom business logic |
-
-## 🔒 Security Features
-
-- **Managed Identity** - No credentials in code
-- **RBAC** - Principle of least privilege
-- **TLS 1.2+** - Encryption in transit
-- **Shared Key Disabled** - Enhanced storage security
-- **Private Endpoints Ready** - VNet integration support
-
-## 📝 Prerequisites
-
-- Azure subscription
-- Azure CLI installed and authenticated
-- Bash shell (Linux, macOS, WSL, or Azure Cloud Shell)
-- For Function App: Azure Functions Core Tools
-
-## 🧪 Testing
-
-Both implementations include test scripts that:
-- Upload a sample flow log to storage
-- Simulate Event Grid notifications
-- Verify end-to-end processing
-
-See individual test scripts for configuration requirements.
-
-## 📚 Documentation
-
-- **[CONFIGURATION.md](CONFIGURATION.md)** - Detailed setup and configuration guide
-- **[function-app/README.md](function-app/README.md)** - Function App specific documentation
-- **[logicapp/README.md](logicapp/README.md)** - Logic App specific documentation
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
-## ⚖️ License
-
-This project is provided as-is for educational and reference purposes.
+[MIT License](LICENSE).
